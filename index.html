@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Plak Arşivim</title>
+<meta name="theme-color" content="#ECEEE9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#131517" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Plak Arşivim">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=IBM+Plex+Mono:wght@400;500&family=Source+Sans+3:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="style.css">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+
+<!-- sign-in gate (only when Firebase is configured) -->
+<div class="wrap gate" id="gate" hidden>
+  <div class="box">
+    <div class="vinyl" aria-hidden="true"></div>
+    <h1>Plak Arşivim</h1>
+    <p>Arşivinizin bilgisayarda ve telefonda aynı kalması için Google hesabınızla giriş yapın.</p>
+    <button class="btn primary" id="signIn" type="button">Google ile giriş yap</button>
+    <span class="status" id="gateStatus" role="status"></span>
+  </div>
+</div>
+
+<div class="wrap" id="app" hidden>
+  <header class="top">
+    <div>
+      <div class="eyebrow">Plak Arşivim · Koleksiyon</div>
+      <div class="count"><b id="total">0</b><span>plak</span></div>
+      <div class="stats" id="stats"></div>
+    </div>
+    <div class="top-actions">
+      <button class="btn primary" id="addBtn" type="button">+ Plak ekle</button>
+      <div class="menu">
+        <button class="btn" id="menuBtn" type="button" aria-haspopup="true" aria-expanded="false">☰ Menü</button>
+        <div class="menu-list" id="menuList" hidden>
+          <div class="who" id="who"></div>
+          <button type="button" id="mFillCovers">Eksik kapak ve bilgileri bul</button>
+          <button type="button" id="mExport">Yedek indir (.json)</button>
+          <label for="importFile">Yedekten geri yükle…</label>
+          <button type="button" id="mMigrate" hidden>Bu cihazdaki kayıtları hesaba taşı</button>
+          <button type="button" id="mSignOut" hidden>Çıkış yap</button>
+        </div>
+        <input type="file" id="importFile" accept="application/json,.json" hidden>
+      </div>
+    </div>
+  </header>
+  <div class="decades" id="decades" aria-label="On yıllara göre dağılım"></div>
+
+  <div class="toolbar">
+    <div class="search"><label for="q">Ara</label><input id="q" type="search" placeholder="Albüm, sanatçı, şarkı, plak şirketi…"></div>
+    <div><label for="fArtist">Sanatçı</label><select id="fArtist"></select></div>
+    <div><label for="fGenre">Tür</label><select id="fGenre"></select></div>
+    <div><label for="sort">Sırala</label><select id="sort">
+      <option value="added">Eklenme (yeni → eski)</option>
+      <option value="relAsc">Çıkış yılı (eski → yeni)</option>
+      <option value="relDesc">Çıkış yılı (yeni → eski)</option>
+      <option value="artist">Sanatçı (A → Z)</option>
+      <option value="title">Albüm (A → Z)</option>
+    </select></div>
+  </div>
+  <div class="chips" id="chips"></div>
+  <div id="notice"></div>
+  <div class="progress" id="progress" hidden></div>
+  <div class="resultline"><span id="resultCount"></span><span id="conn" class="mono"></span></div>
+  <div class="grid" id="grid"></div>
+  <div class="empty" id="empty" hidden></div>
+</div>
+
+<!-- detail -->
+<div class="sheet" id="detailSheet" hidden>
+  <div class="panel" role="dialog" aria-modal="true" aria-labelledby="dTitle">
+    <div class="panel-head"><span class="eyebrow">Plak</span><button class="x" type="button" data-close aria-label="Kapat">×</button></div>
+    <div class="panel-body" id="detailBody"></div>
+  </div>
+</div>
+
+<!-- form -->
+<div class="sheet" id="formSheet" hidden>
+  <div class="panel" role="dialog" aria-modal="true" aria-labelledby="fTitleH">
+    <div class="panel-head"><strong id="fTitleH">Plak ekle</strong><button class="x" type="button" data-close aria-label="Kapat">×</button></div>
+    <form class="panel-body form" id="form" autocomplete="off">
+      <div class="field s3"><label for="iTitle">Albüm adı *</label><input id="iTitle" required></div>
+      <div class="field s3"><label for="iArtist">Sanatçı *</label><input id="iArtist" required list="artistList"><datalist id="artistList"></datalist></div>
+      <div class="field s3"><label for="iAdded">Aldığım tarih (isteğe bağlı)</label><input id="iAdded" type="date"></div>
+      <div class="field s3"><label>Albüm kapağı</label>
+        <div class="coverpick"><div class="thumb" id="coverThumb"></div>
+          <div>
+            <div class="cover-nav">
+              <button type="button" class="btn" id="coverPrev" aria-label="Önceki kapak">◀</button>
+              <span class="mono" id="coverIdx"></span>
+              <button type="button" class="btn" id="coverNext" aria-label="Sonraki kapak">▶</button>
+              <button type="button" class="btn" id="coverRemove">Kaldır</button>
+            </div>
+            <label class="hint" for="iCover" style="cursor:pointer;text-decoration:underline;display:inline-block;margin-top:6px">Kendi fotoğrafımı yükle</label>
+            <input id="iCover" type="file" accept="image/*" hidden>
+          </div>
+        </div>
+      </div>
+      <div class="fill">
+        <p>Albüm adı ve sanatçıyı yazın; kapak, çıkış tarihi, tür, şarkı listesi ve Wikipedia linki MusicBrainz, Wikipedia ve iTunes'tan bulunur. Butona basmadan kaydederseniz bilgiler kayıttan sonra kendiliğinden doldurulur.</p>
+        <button type="button" class="btn primary" id="autofill">Bilgileri ve kapağı bul</button>
+        <span class="status" id="fillStatus" role="status"></span>
+      </div>
+      <div class="matchrow" id="matchRow" hidden><label for="iMatch" class="mono">Eşleşme</label><select id="iMatch"></select></div>
+      <div class="sep">Albüm bilgileri</div>
+      <div class="field s2 date3"><label for="iDay">Çıkış günü</label><input id="iDay" type="number" min="1" max="31" inputmode="numeric" placeholder="Gün"></div>
+      <div class="field s2 date3"><label for="iMonth">Ay</label><input id="iMonth" type="number" min="1" max="12" inputmode="numeric" placeholder="Ay"></div>
+      <div class="field s2 date3"><label for="iYear">Yıl</label><input id="iYear" type="number" min="1900" max="2100" inputmode="numeric" placeholder="Yıl"></div>
+      <div class="field s3"><label for="iGenres">Tür(ler)</label><input id="iGenres" placeholder="Progressive rock, Psychedelic rock"><div class="hint">Virgülle ayırın.</div></div>
+      <div class="field s3"><label for="iWiki">İngilizce Wikipedia linki</label><input id="iWiki" type="url" placeholder="https://en.wikipedia.org/wiki/…"></div>
+      <div class="field s2"><label for="iLabel">Plak şirketi</label><input id="iLabel"></div>
+      <div class="field s2"><label for="iProducer">Yapımcı</label><input id="iProducer"></div>
+      <div class="field s2"><label for="iLength">Toplam süre</label><input id="iLength" placeholder="42:49"></div>
+      <div class="field"><label for="iTracks">Şarkı listesi</label><textarea id="iTracks" placeholder="A1 | Speak to Me | 1:13&#10;A2 | Breathe | 2:43&#10;B1 | Money | 6:22"></textarea><div class="hint">Her satır: taraf+sıra | şarkı | süre</div></div>
+      <div class="field actions" style="margin-top:4px">
+        <button type="submit" class="btn primary" id="saveBtn">Kaydet</button>
+        <button type="button" class="btn" data-close>Vazgeç</button>
+        <span class="status" id="saveStatus" role="status"></span>
+      </div>
+    </form>
+  </div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="config.js"></script>
+<script src="lookup.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
