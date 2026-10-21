@@ -146,6 +146,8 @@ function fillDetail(r) {
     let label = r.wikiUrl; try { label = decodeURIComponent(r.wikiUrl.split('/wiki/')[1]).replace(/_/g, ' '); } catch (e) {}
     dl.append(el('dt', { text: 'Wikipedia' }), el('dd', {}, el('a', { href: r.wikiUrl, target: '_blank', rel: 'noopener', text: label })));
   }
+  const ytm = 'https://music.youtube.com/search?q=' + encodeURIComponent(`${r.artist} ${r.title}`);
+  dl.append(el('dt', { text: 'Dinle' }), el('dd', {}, el('a', { href: ytm, target: '_blank', rel: 'noopener', text: 'YouTube Music\'te aç' })));
   const sides = {}; (r.tracks || []).forEach(t => { const m = /^([A-Za-z])/.exec(t.pos || '') || /^(\d+)-/.exec(t.pos || ''); const s = m ? m[1].toUpperCase() : '—'; (sides[s] = sides[s] || []).push(t); });
   const sideName = s => s === '—' ? 'Şarkılar' : /\d/.test(s) ? `${s}. Disk` : `${s} Yüzü`;
   const tracks = Object.keys(sides).length ? el('div', { class: 'tracks' }, Object.entries(sides).map(([s, ts]) =>

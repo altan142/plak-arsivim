@@ -1,5 +1,5 @@
 // Plak Arşivim — çevrimdışı açılış için uygulama dosyalarını önbelleğe alır
-const CACHE = 'plak-arsivim-v5';
+const CACHE = 'plak-arsivim-v6';
 const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'lookup.js', 'config.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', e => {
