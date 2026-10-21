@@ -222,7 +222,15 @@ async function fromDiscogs(url) {
   let rel, master = null;
   if (ref.kind === 'master') {
     master = await getJSON(`https://api.discogs.com/masters/${ref.id}`);
-    rel = await getJSON(`https://api.discogs.com/releases/${master.main_release}`);
+    // Master linki: plak baskısını tercih et (yoksa ana baskı)
+    let vid = null;
+    try {
+      const v = await getJSON(`https://api.discogs.com/masters/${ref.id}/versions?format=Vinyl&per_page=25`);
+      const vers = (v.versions || []).slice(); const pure = x => (x.major_formats || []).includes('Vinyl') ? 0 : 1;
+      vers.sort((a, b) => (pure(a) - pure(b)) || String(a.released || '9999').localeCompare(String(b.released || '9999')));
+      vid = vers[0]?.id || null;
+    } catch (e) {}
+    rel = await getJSON(`https://api.discogs.com/releases/${vid || master.main_release}`);
   } else {
     rel = await getJSON(`https://api.discogs.com/releases/${ref.id}`);
     if (rel.master_id) master = await getJSON(`https://api.discogs.com/masters/${rel.master_id}`).catch(() => null);
@@ -245,7 +253,9 @@ async function fromDiscogs(url) {
   const toMs = l => { const p = String(l || '').split(':').map(Number); return !l || p.some(isNaN) ? 0 : p.reduce((a, b) => a * 60 + b, 0) * 1000; };
   const artist = (rel.artists || []).map((a, i, arr) => dgName(a) + (i < arr.length - 1 ? (a.join ? ' ' + a.join.trim() + ' ' : ', ') : '')).join('').replace(/\s+,/g, ',').trim();
   const styles = (rel.styles && rel.styles.length ? rel.styles : rel.genres || []).slice(0, 3).map(cap);
-  const producer = [...new Set((rel.extraartists || []).filter(a => /produc/i.test(a.role || '')).map(dgName))].join(', ');
+  // Sadece müzik yapımcıları (video/yönetici yapımcılar hariç)
+  const isProd = role => String(role || '').split(',').map(x => x.trim()).some(x => /^(co-)?producer( \[(?!video|dvd|blu)[^\]]*\])?$/i.test(x) || /^produced by$/i.test(x));
+  const producer = [...new Set((rel.extraartists || []).filter(a => isProd(a.role) && !(a.tracks && /^(CD|DVD|BD|Blu)/i.test(a.tracks))).map(dgName))].join(', ');
   return {
     title: master?.title || rel.title, artist, releaseDate, genres: styles,
     label: (rel.labels || [])[0]?.name?.replace(/\s\(\d+\)$/, '') || '', producer, tracks,
