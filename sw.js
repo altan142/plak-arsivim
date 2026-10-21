@@ -1,6 +1,6 @@
 // Plak Arşivim — çevrimdışı açılış için uygulama dosyalarını önbelleğe alır.
 // Yeni sürüm yayınlanınca VERSION değişir; tarayıcı bu dosyayı her açılışta denetler.
-const VERSION = '9';
+const VERSION = '10';
 const CACHE = 'plak-arsivim-v' + VERSION;
 const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'lookup.js', 'config.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];
 
