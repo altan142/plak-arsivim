@@ -182,8 +182,10 @@ async function details(c, typed) {
 // Discogs: master'ın plak baskılarından şarkı listesi olan ilkini al (sadece plak olanlar önce)
 async function discogsVinyl(masterId) {
   const v = await getJSON(`https://api.discogs.com/masters/${masterId}/versions?format=Vinyl&per_page=25`);
-  const vers = (v.versions || []).filter(x => (x.major_formats || []).includes('Vinyl'));
-  vers.sort((a, b) => ((a.major_formats || []).length - (b.major_formats || []).length) || String(a.released || '9999').localeCompare(String(b.released || '9999')));
+  // ?format=Vinyl zaten plak içeren baskıları getirir (kutu setler dahil); salt plak olanlar öne
+  const vers = (v.versions || []).slice();
+  const pure = x => (x.major_formats || []).includes('Vinyl') ? 0 : 1;
+  vers.sort((a, b) => (pure(a) - pure(b)) || String(a.released || '9999').localeCompare(String(b.released || '9999')));
   const isSide = pos => /^[A-Z]{1,2}\d*[a-z]?$/.test(pos || '');
   for (const ver of vers.slice(0, 3)) {
     const rel = await getJSON(`https://api.discogs.com/releases/${ver.id}`);
