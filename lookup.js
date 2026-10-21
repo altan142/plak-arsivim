@@ -73,7 +73,7 @@ async function search(title, artist) {
 async function details(c, typed) {
   const out = { title: c.title, artist: c.artist, releaseDate: '', genres: [], label: '', producer: '', length: '',
     tracks: [], wikiUrl: '', wikiSummary: '', covers: [], mbid: c.source === 'mb' ? c.id : '' };
-  const addCover = u => { if (u && !out.covers.includes(u)) out.covers.push(u); };
+  const addCover = u => { if (u) u = String(u).replace(/^http:\/\//, 'https://'); if (u && !out.covers.includes(u)) out.covers.push(u); };
   let wdGenres = [];
 
   if (c.source === 'mb') {
