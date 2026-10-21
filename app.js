@@ -3,7 +3,7 @@
 const $ = s => document.querySelector(s);
 const coll = new Intl.Collator('tr', { sensitivity: 'base' });
 const MONTHS = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
-const APP_VERSION = '10';
+const APP_VERSION = '9';
 const META = ['releaseDate','genres','label','producer','length','tracks','wikiUrl','wikiSummary','mbid'];
 
 let records = [];
@@ -192,6 +192,8 @@ function fillDetail(r) {
     dl.append(el('dt', { text: 'Wikipedia' }), el('dd', {}, el('a', { href: r.wikiUrl, target: '_blank', rel: 'noopener', text: label })));
   }
   if (r.discogsUrl && /^https:\/\/(www\.)?discogs\.com\//.test(r.discogsUrl)) dl.append(el('dt', { text: 'Discogs' }), el('dd', {}, el('a', { href: r.discogsUrl, target: '_blank', rel: 'noopener', text: 'Baskı sayfası' })));
+  const ytm = 'https://music.youtube.com/search?q=' + encodeURIComponent(`${r.artist} ${r.title}`);
+  dl.append(el('dt', { text: 'Dinle' }), el('dd', {}, el('a', { href: ytm, target: '_blank', rel: 'noopener', text: 'YouTube Music\'te aç' })));
   const sides = {}; (r.tracks || []).forEach(t => { const m = /^([A-Za-z])/.exec(t.pos || '') || /^(\d+)-/.exec(t.pos || ''); const s = m ? m[1].toUpperCase() : '—'; (sides[s] = sides[s] || []).push(t); });
   const sideName = s => s === '—' ? 'Şarkılar' : /\d/.test(s) ? `${s}. Disk` : `${s} Yüzü`;
   const tracks = Object.keys(sides).length ? el('div', { class: 'tracks' }, Object.entries(sides).map(([s, ts]) =>
