@@ -1,14 +1,10 @@
-// Firebase ayarları — KURULUM.md'deki 2. adımda Firebase'in verdiği nesneyi buraya yapıştırın.
-// null kalırsa uygulama "yerel modda" çalışır: kayıtlar sadece bu cihazın tarayıcısında tutulur.
-window.FIREBASE_CONFIG = null;
-
-/* Örnek:
+// Firebase ayarları (plak-arsivim projesi). Bu değerler gizli değildir; güvenliği firestore.rules sağlar.
+// null yaparsanız uygulama "yerel modda" çalışır: kayıtlar sadece o cihazın tarayıcısında tutulur.
 window.FIREBASE_CONFIG = {
-  apiKey: "AIza...",
+  apiKey: "AIzaSyByW_oTTsZW72i98sPKSCCVGlW75NMUP-g",
   authDomain: "plak-arsivim.firebaseapp.com",
   projectId: "plak-arsivim",
-  storageBucket: "plak-arsivim.appspot.com",
-  messagingSenderId: "1234567890",
-  appId: "1:1234567890:web:abcdef"
+  storageBucket: "plak-arsivim.firebasestorage.app",
+  messagingSenderId: "97179138585",
+  appId: "1:97179138585:web:2e2163ab1d7a20f9a10888"
 };
-*/
