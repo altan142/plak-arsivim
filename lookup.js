@@ -35,8 +35,13 @@ function jsonp(url, ms = 9000) {
 const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
   .replace(/ı/g, 'i').replace(/\(.*?\)|\[.*?\]/g, ' ').replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, ' ').trim();
 const luc = s => String(s).replace(/([+\-!(){}\[\]^"~*?:\\\/]|&&|\|\|)/g, '\\$1');
-const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
-const mmss = ms => { if (!ms) return ''; const t = Math.round(ms / 1000); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); };
+// Her kelimenin ilk harfi büyük: "progressive rock" → "Progressive Rock", "synth-pop" → "Synth-Pop"
+const cap = s => s ? String(s).toLowerCase().replace(/(^|[\s\-\/(])(\p{L})/gu, (m, a, b) => a + b.toUpperCase()) : s;
+// Süre: 59 dk'ya kadar m:ss, üstünde s:dd:ss (ör. 2:43:05)
+const mmss = ms => { if (!ms) return ''; const t = Math.round(ms / 1000); const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), sec = String(t % 60).padStart(2, '0');
+  return h ? h + ':' + String(m).padStart(2, '0') + ':' + sec : m + ':' + sec; };
+// Plak/CD dışındaki ortamlar (DVD, Blu-ray vb.) şarkı listesine ve toplam süreye katılmaz
+const isVideo = m => /dvd|blu-?ray|vhs|video|laserdisc|umd/i.test(m.format || '');
 const credit = ac => (ac || []).map(a => (a.name || a.artist?.name || '') + (a.joinphrase || '')).join('').trim();
 const wikiUrl = title => 'https://en.wikipedia.org/wiki/' + encodeURIComponent(title.replace(/ /g, '_')).replace(/%2F/g, '/').replace(/%3A/g, ':').replace(/%2C/g, ',').replace(/%27/g, "'");
 
@@ -111,12 +116,14 @@ async function details(c, typed) {
       const d = await mb(`release?release-group=${c.id}&inc=recordings+labels+media&limit=40`);
       const rels = (d.releases || []).filter(r => (r.media || []).some(m => (m.tracks || []).length));
       const isVinyl = r => (r.media || []).some(m => /vinyl/i.test(m.format || ''));
+      const audioOnly = r => !(r.media || []).some(isVideo);
       const official = r => r.status === 'Official';
-      rels.sort((a, b) => (isVinyl(b) - isVinyl(a)) || (official(b) - official(a)) || (a.date || '9999').localeCompare(b.date || '9999'));
+      rels.sort((a, b) => (isVinyl(b) - isVinyl(a)) || (audioOnly(b) - audioOnly(a)) || (official(b) - official(a)) || (a.date || '9999').localeCompare(b.date || '9999'));
       const r = rels[0];
       if (r) {
-        const multi = r.media.length > 1; let total = 0;
-        r.media.forEach(m => (m.tracks || []).forEach(t => {
+        const media = r.media.filter(m => !isVideo(m) && (m.tracks || []).length);
+        const multi = media.length > 1; let total = 0;
+        media.forEach(m => (m.tracks || []).forEach(t => {
           const len = t.length || t.recording?.length || 0; total += len;
           const num = String(t.number || t.position || '');
           out.tracks.push({ pos: multi && /^\d+$/.test(num) ? `${m.position}-${num}` : num, title: t.title, len: mmss(len) });
@@ -148,7 +155,7 @@ async function details(c, typed) {
     if (it) {
       addCover(it.artworkUrl100 && it.artworkUrl100.replace(/\/\d+x\d+bb\./, '/600x600bb.'));
       if (!out.releaseDate && it.releaseDate) out.releaseDate = it.releaseDate.slice(0, 4);
-      if (!out.genres.length && it.primaryGenreName) out.genres = [it.primaryGenreName];
+      if (!out.genres.length && it.primaryGenreName) out.genres = [cap(it.primaryGenreName)];
     }
   } catch (e) { /* yok */ }
 

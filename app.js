@@ -62,6 +62,8 @@ function coverNode(r) {
   img.onerror = () => img.replaceWith(placeholder(r)); return img;
 }
 function toast(msg) { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => t.hidden = true, 2600); }
+const titleCase = g => String(g).toLowerCase().replace(/(^|[\s\-\/(])(\p{L})/gu, (m, a, b) => a + b.toUpperCase());
+const fixGenres = gs => [...new Set((gs || []).map(titleCase))];
 const normKey = r => (r.title + '|' + r.artist).toLocaleLowerCase('tr').replace(/\s+/g, ' ').trim();
 
 /* ---------------- list ---------------- */
@@ -249,7 +251,7 @@ function readForm() {
   const y = F('iYear').value.trim(), m = F('iMonth').value.trim(), d = F('iDay').value.trim();
   let rel = ''; if (/^\d{4}$/.test(y)) { rel = y; if (m && +m >= 1 && +m <= 12) { rel += '-' + String(+m).padStart(2, '0'); if (d && +d >= 1 && +d <= 31) rel += '-' + String(+d).padStart(2, '0'); } }
   return { title: F('iTitle').value.trim(), artist: F('iArtist').value.trim(), addedDate: F('iAdded').value || '', releaseDate: rel,
-    genres: F('iGenres').value.split(',').map(s => s.trim()).filter(Boolean), wikiUrl: F('iWiki').value.trim(), label: F('iLabel').value.trim(),
+    genres: fixGenres(F('iGenres').value.split(',').map(s => s.trim()).filter(Boolean)), wikiUrl: F('iWiki').value.trim(), label: F('iLabel').value.trim(),
     producer: F('iProducer').value.trim(), length: F('iLength').value.trim(), tracks: textToTracks(F('iTracks').value),
     cover: formCovers[coverIdx] || '' };
 }
@@ -337,7 +339,7 @@ function start(s, who) {
   store = s; $('#gate').hidden = true; $('#app').hidden = false;
   $('#who').textContent = who || 'Yerel mod: kayıtlar bu cihazda. Senkron için KURULUM.md';
   setConn();
-  store.subscribe(list => { records = list; render(); }, err => { console.error(err); setConn('Arşive ulaşılamadı. Sayfayı yenileyin.'); });
+  store.subscribe(list => { records = list.map(r => ({ ...r, genres: fixGenres(r.genres) })); render(); }, err => { console.error(err); setConn('Arşive ulaşılamadı. Sayfayı yenileyin.'); });
   const localRecs = readLocal();
   $('#mMigrate').hidden = !(s.kind === 'cloud' && localRecs.length);
 }
