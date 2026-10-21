@@ -3,6 +3,7 @@
 const $ = s => document.querySelector(s);
 const coll = new Intl.Collator('tr', { sensitivity: 'base' });
 const MONTHS = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+const APP_VERSION = '7';
 const META = ['releaseDate','genres','label','producer','length','tracks','wikiUrl','wikiSummary','mbid'];
 
 let records = [];
@@ -339,7 +340,7 @@ function setConn(text) {
 /* ---------------- boot ---------------- */
 function start(s, who) {
   store = s; $('#gate').hidden = true; $('#app').hidden = false;
-  $('#who').textContent = who || 'Yerel mod: kayıtlar bu cihazda. Senkron için KURULUM.md';
+  $('#who').textContent = (who || 'Yerel mod: kayıtlar bu cihazda') + ' · sürüm ' + APP_VERSION;
   setConn();
   store.subscribe(list => { records = list.map(r => ({ ...r, genres: fixGenres(r.genres) })); render(); }, err => { console.error(err); setConn('Arşive ulaşılamadı. Sayfayı yenileyin.'); });
   const localRecs = readLocal();
@@ -379,5 +380,27 @@ if (cfg && window.firebase) {
   if (cfg && !window.firebase) setConn('Firebase yüklenemedi (internet?) · şimdilik yerel mod');
 }
 
-if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+/* ---------------- updates ---------------- */
+// Yeni sürüm yayınlanınca: arka planda indirilir, form açık değilse sayfa kendini yeniler.
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  const hadController = !!navigator.serviceWorker.controller;
+  let reloading = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || reloading) return;
+    const apply = () => { reloading = true; location.reload(); };
+    if ($('#formSheet').hidden) apply();
+    else { toast('Yeni sürüm hazır; formu kapatınca yüklenecek'); const iv = setInterval(() => { if ($('#formSheet').hidden) { clearInterval(iv); apply(); } }, 1000); }
+  });
+  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(reg => {
+    const check = () => reg.update().catch(() => {});
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') check(); });
+    setInterval(check, 30 * 60 * 1000);
+    window.__checkUpdate = check;
+  }).catch(() => {});
+}
+$('#mUpdate').onclick = async () => {
+  closeMenu(); toast('Güncelleme denetleniyor…');
+  try { await window.__checkUpdate?.(); } catch (e) {}
+  setTimeout(() => toast('Uygulama güncel · sürüm ' + APP_VERSION), 2500);
+};
 })();

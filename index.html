@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-title" content="Plak Arşivim">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=IBM+Plex+Mono:wght@400;500&family=Source+Sans+3:wght@400;600;700&display=swap">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=7">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
 <body>
@@ -46,6 +46,7 @@
           <button type="button" id="mExport">Yedek indir (.json)</button>
           <label for="importFile">Yedekten geri yükle…</label>
           <button type="button" id="mMigrate" hidden>Bu cihazdaki kayıtları hesaba taşı</button>
+          <button type="button" id="mUpdate">Güncellemeleri denetle</button>
           <button type="button" id="mSignOut" hidden>Çıkış yap</button>
         </div>
         <input type="file" id="importFile" accept="application/json,.json" hidden>
@@ -133,8 +134,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="config.js"></script>
-<script src="lookup.js"></script>
-<script src="app.js"></script>
+<script src="config.js?v=7"></script>
+<script src="lookup.js?v=7"></script>
+<script src="app.js?v=7"></script>
 </body>
 </html>
