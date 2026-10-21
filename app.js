@@ -3,7 +3,7 @@
 const $ = s => document.querySelector(s);
 const coll = new Intl.Collator('tr', { sensitivity: 'base' });
 const MONTHS = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
-const APP_VERSION = '7';
+const APP_VERSION = '8';
 const META = ['releaseDate','genres','label','producer','length','tracks','wikiUrl','wikiSummary','mbid'];
 
 let records = [];
@@ -109,6 +109,7 @@ function render() {
       const bar = el('i', { title: `${d}'ler: ${n} plak` }); bar.style.height = (n ? Math.max(8, n / max * 30) : 2) + 'px';
       box.append(el('div', {}, bar, el('small', { text: `'${String(d).slice(2)}` }))); } }
 
+  drawCharts(artists, gc);
   const fa = $('#fArtist'); fa.replaceChildren(el('option', { value: '', text: 'Tümü' }), ...artists.map(a => el('option', { value: a, text: a }))); fa.value = filter.artist;
   const fg = $('#fGenre'); fg.replaceChildren(el('option', { value: '', text: 'Tümü' }), ...genres.map(g => el('option', { value: g, text: `${g} (${gc[g]})` }))); fg.value = filter.genre;
   $('#sort').value = filter.sort;
@@ -125,6 +126,49 @@ function render() {
   else if (!list.length) { empty.hidden = false; empty.replaceChildren(el('h2', { text: 'Eşleşen plak yok' }), el('p', { text: 'Aramayı veya filtreleri değiştirin.' })); }
   else empty.hidden = true;
   if (openId && !$('#detailSheet').hidden) { const r = records.find(x => x.id === openId); if (r) fillDetail(r); }
+}
+
+/* ---------------- charts ---------------- */
+const PALETTE = ['#1E5A86', '#C9921A', '#AE3A2E', '#4E8A5B', '#7A5BA6', '#2A9D9A', '#D2691E', '#8C6A4F'];
+const OTHER = '#8F9691';
+let chartsOpen = false; try { chartsOpen = localStorage.getItem('plak-charts') === '1'; } catch (e) {}
+function setCharts(open) { chartsOpen = open; $('#charts').hidden = !open; $('#chartsBtn').setAttribute('aria-expanded', String(open));
+  try { localStorage.setItem('plak-charts', open ? '1' : '0'); } catch (e) {} if (open) render(); }
+$('#chartsBtn').addEventListener('click', () => setCharts(!chartsOpen));
+function drawCharts(artists, gc) {
+  $('#charts').hidden = !chartsOpen; $('#chartsBtn').setAttribute('aria-expanded', String(chartsOpen));
+  if (!chartsOpen) return;
+  const ac = {}; records.forEach(r => { if (r.artist) ac[r.artist] = (ac[r.artist] || 0) + 1; });
+  pie($('#pieArtists'), ac, 'artist', 'plak');
+  pie($('#pieGenres'), gc, 'genre', 'plak');
+}
+function pie(box, counts, key, unit) {
+  const all = Object.entries(counts).sort((a, b) => b[1] - a[1] || coll.compare(a[0], b[0]));
+  if (!all.length) { box.replaceChildren(el('p', { class: 'chart-empty', text: 'Henüz veri yok.' })); return; }
+  const top = all.slice(0, 8); const rest = all.slice(8).reduce((a, e) => a + e[1], 0);
+  const items = top.map(([name, n], i) => ({ name, n, color: PALETTE[i] }));
+  if (rest) items.push({ name: `Diğer (${all.length - 8})`, n: rest, color: OTHER, other: true });
+  const total = items.reduce((a, x) => a + x.n, 0);
+  const NS = 'http://www.w3.org/2000/svg'; const svg = document.createElementNS(NS, 'svg'); svg.setAttribute('viewBox', '0 0 100 100');
+  svg.setAttribute('role', 'img'); svg.setAttribute('aria-label', items.map(x => `${x.name}: ${x.n}`).join(', '));
+  const pick = x => { if (x.other) return; filter[key] = filter[key] === x.name ? '' : x.name; saveFilter(); render(); };
+  let a0 = -Math.PI / 2;
+  for (const x of items) {
+    let node;
+    if (x.n === total) { node = document.createElementNS(NS, 'circle'); node.setAttribute('cx', 50); node.setAttribute('cy', 50); node.setAttribute('r', 48); }
+    else {
+      const a1 = a0 + x.n / total * Math.PI * 2; const large = a1 - a0 > Math.PI ? 1 : 0;
+      const p = (a) => `${(50 + 48 * Math.cos(a)).toFixed(3)} ${(50 + 48 * Math.sin(a)).toFixed(3)}`;
+      node = document.createElementNS(NS, 'path'); node.setAttribute('d', `M50 50 L${p(a0)} A48 48 0 ${large} 1 ${p(a1)} Z`); a0 = a1;
+    }
+    node.setAttribute('fill', x.color);
+    if (filter[key] && filter[key] !== x.name) node.setAttribute('opacity', '.35');
+    const t = document.createElementNS(NS, 'title'); t.textContent = `${x.name}: ${x.n} ${unit} (%${Math.round(x.n / total * 100)})`; node.append(t);
+    node.addEventListener('click', () => pick(x)); svg.append(node);
+  }
+  const legend = el('ul', { class: 'legend' }, items.map(x => el('li', {}, el('button', { type: 'button', 'aria-pressed': String(filter[key] === x.name), disabled: x.other, onclick: () => pick(x) },
+    (() => { const i = el('i'); i.style.background = x.color; return i; })(), el('span', { text: x.name, title: x.name }), el('b', { text: `${x.n} · %${Math.round(x.n / total * 100)}` })))));
+  box.replaceChildren(svg, legend);
 }
 
 function card(r) {
@@ -147,6 +191,7 @@ function fillDetail(r) {
     let label = r.wikiUrl; try { label = decodeURIComponent(r.wikiUrl.split('/wiki/')[1]).replace(/_/g, ' '); } catch (e) {}
     dl.append(el('dt', { text: 'Wikipedia' }), el('dd', {}, el('a', { href: r.wikiUrl, target: '_blank', rel: 'noopener', text: label })));
   }
+  if (r.discogsUrl && /^https:\/\/(www\.)?discogs\.com\//.test(r.discogsUrl)) dl.append(el('dt', { text: 'Discogs' }), el('dd', {}, el('a', { href: r.discogsUrl, target: '_blank', rel: 'noopener', text: 'Baskı sayfası' })));
   const ytm = 'https://music.youtube.com/search?q=' + encodeURIComponent(`${r.artist} ${r.title}`);
   dl.append(el('dt', { text: 'Dinle' }), el('dd', {}, el('a', { href: ytm, target: '_blank', rel: 'noopener', text: 'YouTube Music\'te aç' })));
   const sides = {}; (r.tracks || []).forEach(t => { const m = /^([A-Za-z])/.exec(t.pos || '') || /^(\d+)-/.exec(t.pos || ''); const s = m ? m[1].toUpperCase() : '—'; (sides[s] = sides[s] || []).push(t); });
@@ -186,6 +231,7 @@ function openForm(r) {
   editingId = r ? r.id : null; fetchedMeta = null; matches = [];
   formCovers = r && r.cover ? [r.cover] : []; coverIdx = 0;
   $('#fTitleH').textContent = r ? 'Plağı düzenle' : 'Plak ekle';
+  F('iDiscogs').value = r?.discogsUrl || ''; $('#discogsStatus').textContent = '';
   F('iTitle').value = r?.title || ''; F('iArtist').value = r?.artist || ''; F('iAdded').value = r?.addedDate || '';
   fillMetaFields(r || {});
   $('#matchRow').hidden = true; $('#fillStatus').textContent = ''; $('#saveStatus').textContent = ''; $('#saveStatus').className = 'status';
@@ -250,13 +296,48 @@ async function applyMatch(i) {
   finally { $('#autofill').disabled = false; $('#iMatch').disabled = false; }
 }
 
+// Discogs linkinden doldur: şarkı listesi, tarih, tür, plak şirketi Discogs'tan; kapak, Wikipedia ve eksik süreler diğer kaynaklardan
+async function discogsFill() {
+  const st = $('#discogsStatus'); st.className = 'status';
+  const url = F('iDiscogs').value.trim();
+  if (!Lookup.parseDiscogs(url)) { st.className = 'status err'; st.textContent = 'Bu bir Discogs albüm linki değil. discogs.com/release/… veya /master/… biçiminde olmalı.'; return; }
+  const btn = $('#discogsFill'); btn.disabled = true; st.textContent = 'Discogs\'tan getiriliyor…';
+  try {
+    const d = await Lookup.fromDiscogs(url);
+    F('iTitle').value = d.title; F('iArtist').value = d.artist; F('iDiscogs').value = d.discogsUrl;
+    fillMetaFields({ ...d, wikiUrl: F('iWiki').value });
+    st.textContent = 'Discogs bilgileri geldi. Kapak ve Wikipedia aranıyor…';
+    fetchedMeta = { wikiSummary: '', mbid: '' };
+    try {
+      const ms = await Lookup.search(d.title, d.artist);
+      if (ms.length) {
+        const m = await Lookup.details(ms[0], d);
+        fetchedMeta = m;
+        const lens = new Map(m.tracks.map(t => [t.title.toLowerCase(), t.len]));
+        const tracks = d.tracks.map(t => ({ ...t, len: t.len || lens.get(t.title.toLowerCase()) || '' }));
+        fillMetaFields({ ...d, tracks, length: d.length || m.length, producer: d.producer || m.producer, label: d.label || m.label,
+          genres: d.genres.length ? d.genres : m.genres, releaseDate: d.releaseDate || m.releaseDate, wikiUrl: m.wikiUrl });
+        const own = formCovers.filter(u => u.startsWith('data:'));
+        formCovers = [...own, ...m.covers]; coverIdx = 0; drawCover();
+      }
+    } catch (e) { console.warn(e); }
+    st.textContent = formCovers.length ? 'Hazır. Kaydetmeden önce kontrol edin.' : 'Bilgiler geldi ama kapak bulunamadı. Fotoğraf yükleyebilirsiniz.';
+  } catch (e) {
+    st.className = 'status err';
+    st.textContent = /404/.test(e.message) ? 'Discogs\'ta bu kayıt bulunamadı.' : /429/.test(e.message) ? 'Discogs çok sık istek aldı; bir dakika sonra deneyin.' : 'Discogs\'a ulaşılamadı. Bağlantınızı kontrol edin.';
+    console.error(e);
+  } finally { btn.disabled = false; }
+}
+$('#discogsFill').addEventListener('click', discogsFill);
+F('iDiscogs').addEventListener('paste', () => setTimeout(() => { if (Lookup.parseDiscogs(F('iDiscogs').value)) discogsFill(); }, 0));
+
 function readForm() {
   const y = F('iYear').value.trim(), m = F('iMonth').value.trim(), d = F('iDay').value.trim();
   let rel = ''; if (/^\d{4}$/.test(y)) { rel = y; if (m && +m >= 1 && +m <= 12) { rel += '-' + String(+m).padStart(2, '0'); if (d && +d >= 1 && +d <= 31) rel += '-' + String(+d).padStart(2, '0'); } }
   return { title: F('iTitle').value.trim(), artist: F('iArtist').value.trim(), addedDate: F('iAdded').value || '', releaseDate: rel,
     genres: fixGenres(F('iGenres').value.split(',').map(s => s.trim()).filter(Boolean)), wikiUrl: F('iWiki').value.trim(), label: F('iLabel').value.trim(),
     producer: F('iProducer').value.trim(), length: F('iLength').value.trim(), tracks: textToTracks(F('iTracks').value),
-    cover: formCovers[coverIdx] || '' };
+    cover: formCovers[coverIdx] || '', discogsUrl: Lookup.parseDiscogs(F('iDiscogs').value) ? F('iDiscogs').value.trim() : '' };
 }
 $('#form').addEventListener('submit', async e => {
   e.preventDefault(); const st = $('#saveStatus'); st.className = 'status';

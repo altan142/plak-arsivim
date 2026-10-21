@@ -208,5 +208,51 @@ async function itunes(title, artist) {
       || res.find(r => norm(r.collectionName).includes(nt)) || null;
 }
 
-window.Lookup = { search, details };
+/* ---------- Discogs linkinden albüm ---------- */
+// discogs.com/release/123-..., /master/456-..., /tr/release/... biçimlerini tanır
+function parseDiscogs(u) {
+  const m = /discogs\.com\/(?:[a-z]{2}\/)?(?:[^/]+\/)?(release|master)\/(\d+)/i.exec(String(u || ''));
+  return m ? { kind: m[1].toLowerCase(), id: m[2] } : null;
+}
+const dgName = a => String(a.anv || a.name || '').replace(/\s\(\d+\)$/, '').replace(/\*$/, '');
+const dgDate = d => { const m = /^(\d{4})(?:-(\d{2}))?(?:-(\d{2}))?/.exec(String(d || '')); if (!m) return '';
+  return m[1] + (m[2] && m[2] !== '00' ? '-' + m[2] + (m[3] && m[3] !== '00' ? '-' + m[3] : '') : ''); };
+async function fromDiscogs(url) {
+  const ref = parseDiscogs(url); if (!ref) throw new Error('discogs_url');
+  let rel, master = null;
+  if (ref.kind === 'master') {
+    master = await getJSON(`https://api.discogs.com/masters/${ref.id}`);
+    rel = await getJSON(`https://api.discogs.com/releases/${master.main_release}`);
+  } else {
+    rel = await getJSON(`https://api.discogs.com/releases/${ref.id}`);
+    if (rel.master_id) master = await getJSON(`https://api.discogs.com/masters/${rel.master_id}`).catch(() => null);
+  }
+  // Çıkış tarihi: albümün ilk baskısı (master'ın ana baskısı); yoksa bu baskı
+  let releaseDate = dgDate(rel.released) || String(rel.year || '');
+  if (master) {
+    const orig = master.main_release && String(master.main_release) !== String(rel.id) ? await getJSON(`https://api.discogs.com/releases/${master.main_release}`).catch(() => null) : null;
+    const od = orig ? dgDate(orig.released) : '';
+    if (od && (!master.year || od.startsWith(String(master.year)))) releaseDate = od;
+    else if (master.year && !releaseDate.startsWith(String(master.year))) releaseDate = String(master.year);
+  }
+  const isSide = pos => /^[A-Z]{1,2}\d*[a-z]?$/.test(pos || '');
+  let tracks = [];
+  for (const t of rel.tracklist || []) {
+    if (t.type_ === 'track') tracks.push({ pos: t.position || '', title: t.title, len: t.duration || '' });
+    else if (t.type_ === 'index') (t.sub_tracks || []).forEach(st => tracks.push({ pos: st.position || '', title: `${t.title}: ${st.title}`, len: st.duration || '' }));
+  }
+  if (tracks.some(t => isSide(t.pos))) tracks = tracks.filter(t => isSide(t.pos));   // kutu setlerde CD/DVD kısmını at
+  const toMs = l => { const p = String(l || '').split(':').map(Number); return !l || p.some(isNaN) ? 0 : p.reduce((a, b) => a * 60 + b, 0) * 1000; };
+  const artist = (rel.artists || []).map((a, i, arr) => dgName(a) + (i < arr.length - 1 ? (a.join ? ' ' + a.join.trim() + ' ' : ', ') : '')).join('').replace(/\s+,/g, ',').trim();
+  const styles = (rel.styles && rel.styles.length ? rel.styles : rel.genres || []).slice(0, 3).map(cap);
+  const producer = [...new Set((rel.extraartists || []).filter(a => /produc/i.test(a.role || '')).map(dgName))].join(', ');
+  return {
+    title: master?.title || rel.title, artist, releaseDate, genres: styles,
+    label: (rel.labels || [])[0]?.name?.replace(/\s\(\d+\)$/, '') || '', producer, tracks,
+    length: tracks.length && tracks.every(t => t.len) ? mmss(tracks.reduce((a, t) => a + toMs(t.len), 0)) : '',
+    discogsUrl: rel.uri || `https://www.discogs.com/release/${rel.id}`
+  };
+}
+
+window.Lookup = { search, details, fromDiscogs, parseDiscogs };
 })();

@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-title" content="Plak Arşivim">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=IBM+Plex+Mono:wght@400;500&family=Source+Sans+3:wght@400;600;700&display=swap">
-<link rel="stylesheet" href="style.css?v=7">
+<link rel="stylesheet" href="style.css?v=8">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
 <body>
@@ -37,6 +37,7 @@
       <div class="stats" id="stats"></div>
     </div>
     <div class="top-actions">
+      <button class="btn" id="chartsBtn" type="button" aria-expanded="false">Grafikler</button>
       <button class="btn primary" id="addBtn" type="button">+ Plak ekle</button>
       <div class="menu">
         <button class="btn" id="menuBtn" type="button" aria-haspopup="true" aria-expanded="false">☰ Menü</button>
@@ -54,6 +55,10 @@
     </div>
   </header>
   <div class="decades" id="decades" aria-label="On yıllara göre dağılım"></div>
+  <section class="charts" id="charts" hidden aria-label="Grafikler">
+    <figure class="chart"><figcaption>Sanatçılar</figcaption><div class="pie-wrap" id="pieArtists"></div></figure>
+    <figure class="chart"><figcaption>Türler</figcaption><div class="pie-wrap" id="pieGenres"></div></figure>
+  </section>
 
   <div class="toolbar">
     <div class="search"><label for="q">Ara</label><input id="q" type="search" placeholder="Albüm, sanatçı, şarkı, plak şirketi…"></div>
@@ -88,6 +93,11 @@
   <div class="panel" role="dialog" aria-modal="true" aria-labelledby="fTitleH">
     <div class="panel-head"><strong id="fTitleH">Plak ekle</strong><button class="x" type="button" data-close aria-label="Kapat">×</button></div>
     <form class="panel-body form" id="form" autocomplete="off">
+      <div class="discogs">
+        <label for="iDiscogs">Discogs linkiyle ekle</label>
+        <div class="discogs-row"><input id="iDiscogs" type="url" inputmode="url" placeholder="https://www.discogs.com/release/…"><button type="button" class="btn primary" id="discogsFill">Discogs'tan doldur</button></div>
+        <span class="status" id="discogsStatus" role="status"></span>
+      </div>
       <div class="field s3"><label for="iTitle">Albüm adı *</label><input id="iTitle" required></div>
       <div class="field s3"><label for="iArtist">Sanatçı *</label><input id="iArtist" required list="artistList"><datalist id="artistList"></datalist></div>
       <div class="field s3"><label for="iAdded">Aldığım tarih (isteğe bağlı)</label><input id="iAdded" type="date"></div>
@@ -134,8 +144,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="config.js?v=7"></script>
-<script src="lookup.js?v=7"></script>
-<script src="app.js?v=7"></script>
+<script src="config.js?v=8"></script>
+<script src="lookup.js?v=8"></script>
+<script src="app.js?v=8"></script>
 </body>
 </html>
