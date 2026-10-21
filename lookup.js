@@ -139,7 +139,9 @@ async function details(c, typed) {
   // Plak baskısının yüz düzeni (A1, A2, B1…) Discogs'tan; süreler eksikse MusicBrainz'deki aynı şarkıdan
   if (out.discogsMaster && !out.tracks.some(t => /^[A-Z]/.test(t.pos))) {
     try {
-      const vinyl = await discogsVinyl(out.discogsMaster);
+      const dv = await discogsVinyl(out.discogsMaster);
+      const vinyl = dv?.tracks;
+      if (dv?.image && !out.covers.includes(dv.image)) out.covers.unshift(dv.image);
       if (vinyl && vinyl.length) {
         const byTitle = new Map(out.tracks.map(t => [norm(t.title), t.len]));
         const toMs = l => { const p = String(l || '').split(':').map(Number); return p.some(isNaN) || !l ? 0 : p.reduce((a, b) => a * 60 + b, 0) * 1000; };
@@ -149,6 +151,10 @@ async function details(c, typed) {
         out.format = 'vinyl';
       }
     } catch (e) { console.warn('Discogs', e); }
+  }
+
+  else if (out.discogsMaster) {
+    try { const m = await getJSON(`https://api.discogs.com/masters/${out.discogsMaster}`); const im = discogsImage(m); if (im && !out.covers.includes(im)) out.covers.unshift(im); } catch (e) {}
   }
 
   // Wikipedia: link yoksa arama, sonra özet + görsel
@@ -179,6 +185,9 @@ async function details(c, typed) {
   return out;
 }
 
+// Discogs görseli: önce ön kapak (primary), yoksa ilk görsel
+const discogsImage = x => { const im = (x?.images || []); const p = im.find(i => i.type === 'primary') || im[0]; return p ? (p.uri || p.resource_url) : ''; };
+
 // Discogs: master'ın plak baskılarından şarkı listesi olan ilkini al (sadece plak olanlar önce)
 async function discogsVinyl(masterId) {
   const v = await getJSON(`https://api.discogs.com/masters/${masterId}/versions?format=Vinyl&per_page=25`);
@@ -194,7 +203,7 @@ async function discogsVinyl(masterId) {
       if (t.type_ === 'track' && isSide(t.position)) list.push({ pos: t.position, title: t.title, len: t.duration || '' });
       else if (t.type_ === 'index') (t.sub_tracks || []).forEach(st => { if (isSide(st.position)) list.push({ pos: st.position, title: `${t.title}: ${st.title}`, len: st.duration || '' }); });
     }
-    if (list.length) return list;
+    if (list.length) return { tracks: list, image: discogsImage(rel) };
   }
   return null;
 }
@@ -260,7 +269,8 @@ async function fromDiscogs(url) {
     title: master?.title || rel.title, artist, releaseDate, genres: styles,
     label: (rel.labels || [])[0]?.name?.replace(/\s\(\d+\)$/, '') || '', producer, tracks,
     length: tracks.length && tracks.every(t => t.len) ? mmss(tracks.reduce((a, t) => a + toMs(t.len), 0)) : '',
-    discogsUrl: rel.uri || `https://www.discogs.com/release/${rel.id}`
+    discogsUrl: rel.uri || `https://www.discogs.com/release/${rel.id}`,
+    covers: [...new Set([discogsImage(rel), discogsImage(master)].filter(Boolean))]
   };
 }
 

@@ -3,7 +3,7 @@
 const $ = s => document.querySelector(s);
 const coll = new Intl.Collator('tr', { sensitivity: 'base' });
 const MONTHS = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
-const APP_VERSION = '8';
+const APP_VERSION = '9';
 const META = ['releaseDate','genres','label','producer','length','tracks','wikiUrl','wikiSummary','mbid'];
 
 let records = [];
@@ -306,6 +306,7 @@ async function discogsFill() {
     const d = await Lookup.fromDiscogs(url);
     F('iTitle').value = d.title; F('iArtist').value = d.artist; F('iDiscogs').value = d.discogsUrl;
     fillMetaFields({ ...d, wikiUrl: F('iWiki').value });
+    { const own = formCovers.filter(u => u.startsWith('data:')); formCovers = [...own, ...d.covers]; coverIdx = 0; drawCover(); }
     st.textContent = 'Discogs bilgileri geldi. Kapak ve Wikipedia aranıyor…';
     fetchedMeta = { wikiSummary: '', mbid: '' };
     try {
@@ -318,7 +319,7 @@ async function discogsFill() {
         fillMetaFields({ ...d, tracks, length: d.length || m.length, producer: d.producer || m.producer, label: d.label || m.label,
           genres: d.genres.length ? d.genres : m.genres, releaseDate: d.releaseDate || m.releaseDate, wikiUrl: m.wikiUrl });
         const own = formCovers.filter(u => u.startsWith('data:'));
-        formCovers = [...own, ...m.covers]; coverIdx = 0; drawCover();
+        formCovers = [...new Set([...own, ...d.covers, ...m.covers])]; coverIdx = 0; drawCover();
       }
     } catch (e) { console.warn(e); }
     st.textContent = formCovers.length ? 'Hazır. Kaydetmeden önce kontrol edin.' : 'Bilgiler geldi ama kapak bulunamadı. Fotoğraf yükleyebilirsiniz.';
