@@ -3,7 +3,7 @@
 const $ = s => document.querySelector(s);
 const coll = new Intl.Collator('tr', { sensitivity: 'base' });
 const MONTHS = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
-const APP_VERSION = '9';
+const APP_VERSION = '11';
 const META = ['releaseDate','genres','label','producer','length','tracks','wikiUrl','wikiSummary','mbid'];
 
 let records = [];
