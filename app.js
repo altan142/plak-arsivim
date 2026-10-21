@@ -147,7 +147,7 @@ function fillDetail(r) {
     dl.append(el('dt', { text: 'Wikipedia' }), el('dd', {}, el('a', { href: r.wikiUrl, target: '_blank', rel: 'noopener', text: label })));
   }
   const sides = {}; (r.tracks || []).forEach(t => { const m = /^([A-Za-z])/.exec(t.pos || '') || /^(\d+)-/.exec(t.pos || ''); const s = m ? m[1].toUpperCase() : '—'; (sides[s] = sides[s] || []).push(t); });
-  const sideName = s => s === '—' ? 'Şarkılar' : /\d/.test(s) ? `Disk ${s}` : `${s} Yüzü`;
+  const sideName = s => s === '—' ? 'Şarkılar' : /\d/.test(s) ? `${s}. Disk` : `${s} Yüzü`;
   const tracks = Object.keys(sides).length ? el('div', { class: 'tracks' }, Object.entries(sides).map(([s, ts]) =>
     el('div', { class: 'side' }, el('h4', { text: sideName(s) }),
       el('ol', {}, ts.map(t => el('li', {}, el('span', { class: 'p', text: t.pos || '' }), el('span', { text: t.title }), el('span', { class: 'l', text: t.len || '' }))))))) : null;

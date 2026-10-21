@@ -85,6 +85,8 @@ async function details(c, typed) {
       const g = (rg.genres && rg.genres.length ? rg.genres : (rg.tags || []))
         .slice().sort((a, b) => (b.count || 0) - (a.count || 0)).slice(0, 3).map(x => cap(x.name));
       out.genres = g;
+      const dg = (rg.relations || []).map(r => /discogs\.com\/master\/(\d+)/.exec(r.url?.resource || '')?.[1]).find(Boolean);
+      if (dg) out.discogsMaster = dg;
       const wd = (rg.relations || []).find(r => r.type === 'wikidata');
       const qid = wd && /Q\d+/.exec(wd.url?.resource || '')?.[0];
       if (qid) {
@@ -134,6 +136,21 @@ async function details(c, typed) {
     } catch (e) { console.warn('Şarkı listesi', e); }
   }
 
+  // Plak baskısının yüz düzeni (A1, A2, B1…) Discogs'tan; süreler eksikse MusicBrainz'deki aynı şarkıdan
+  if (out.discogsMaster && !out.tracks.some(t => /^[A-Z]/.test(t.pos))) {
+    try {
+      const vinyl = await discogsVinyl(out.discogsMaster);
+      if (vinyl && vinyl.length) {
+        const byTitle = new Map(out.tracks.map(t => [norm(t.title), t.len]));
+        const toMs = l => { const p = String(l || '').split(':').map(Number); return p.some(isNaN) || !l ? 0 : p.reduce((a, b) => a * 60 + b, 0) * 1000; };
+        const tracks = vinyl.map(t => ({ pos: t.pos, title: t.title, len: t.len || byTitle.get(norm(t.title)) || '' }));
+        out.tracks = tracks;
+        if (tracks.every(t => t.len)) out.length = mmss(tracks.reduce((a, t) => a + toMs(t.len), 0));
+        out.format = 'vinyl';
+      }
+    } catch (e) { console.warn('Discogs', e); }
+  }
+
   // Wikipedia: link yoksa arama, sonra özet + görsel
   try {
     if (!out.wikiUrl) {
@@ -160,6 +177,24 @@ async function details(c, typed) {
   } catch (e) { /* yok */ }
 
   return out;
+}
+
+// Discogs: master'ın plak baskılarından şarkı listesi olan ilkini al (sadece plak olanlar önce)
+async function discogsVinyl(masterId) {
+  const v = await getJSON(`https://api.discogs.com/masters/${masterId}/versions?format=Vinyl&per_page=25`);
+  const vers = (v.versions || []).filter(x => (x.major_formats || []).includes('Vinyl'));
+  vers.sort((a, b) => ((a.major_formats || []).length - (b.major_formats || []).length) || String(a.released || '9999').localeCompare(String(b.released || '9999')));
+  const isSide = pos => /^[A-Z]{1,2}\d*[a-z]?$/.test(pos || '');
+  for (const ver of vers.slice(0, 3)) {
+    const rel = await getJSON(`https://api.discogs.com/releases/${ver.id}`);
+    const list = [];
+    for (const t of rel.tracklist || []) {
+      if (t.type_ === 'track' && isSide(t.position)) list.push({ pos: t.position, title: t.title, len: t.duration || '' });
+      else if (t.type_ === 'index') (t.sub_tracks || []).forEach(st => { if (isSide(st.position)) list.push({ pos: st.position, title: `${t.title}: ${st.title}`, len: st.duration || '' }); });
+    }
+    if (list.length) return list;
+  }
+  return null;
 }
 
 async function itunes(title, artist) {
